@@ -337,7 +337,7 @@ def download(url: str):
                   stdout=subprocess.PIPE,
                   universal_newlines=True)
         else:
-            process = subprocess.run([aria_path, '-s16',  '-x16', '-k100M', url, f'-d {SNAPSHOT_PATH}', f'-o {temp_fname}'],
+            process = subprocess.run([aria_path, '-s16',  '-x16', '-k100M', url, f'-d {SNAPSHOT_PATH}', f'-o tmp-{fname}'],
               stdout=subprocess.PIPE,
               universal_newlines=True)
 
