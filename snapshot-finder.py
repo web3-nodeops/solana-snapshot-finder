@@ -45,6 +45,7 @@ parser.add_argument('-b', '--blacklist', default='', type=str, help='If the same
                     ' Specify either the number of the slot you want to exclude, or the hash of the archive name. '
                     'You can specify several, separated by commas. Example: -b 135501350,135501360 or --blacklist 135501350,some_hash')
 parser.add_argument("-v", "--verbose", help="increase output verbosity to DEBUG", action="store_true")
+parser.add_argument("--use_aria", help="use aria2c", action="store_true")
 args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
@@ -67,6 +68,7 @@ SORT_ORDER = args.sort_order
 BLACKLIST = str(args.blacklist).split(",")
 IP_BLACKLIST = str(args.ip_blacklist).split(",")
 FULL_LOCAL_SNAP_SLOT = 0
+USE_ARIA = args.use_aria
 
 current_slot = 0
 DISCARDED_BY_ARCHIVE_TYPE = 0
@@ -324,13 +326,18 @@ def download(url: str):
 
     try:
         # dirty trick with wget. Details here - https://github.com/c29r3/solana-snapshot-finder/issues/11
-        if MAX_DOWNLOAD_SPEED_MB is not None:
-            process = subprocess.run([wget_path, '--progress=dot:giga', f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M',
-                                      '--trust-server-names', url, f'-O{temp_fname}'],
-              stdout=subprocess.PIPE,
-              universal_newlines=True)
+        if not USE_ARIA:
+            if MAX_DOWNLOAD_SPEED_MB is not None:
+                process = subprocess.run([wget_path, '--progress=dot:giga', f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M',
+                                          '--trust-server-names', url, f'-O{temp_fname}'],
+                  stdout=subprocess.PIPE,
+                  universal_newlines=True)
+            else:
+                process = subprocess.run([wget_path, '--progress=dot:giga', '--trust-server-names', url, f'-O{temp_fname}'],
+                  stdout=subprocess.PIPE,
+                  universal_newlines=True)
         else:
-            process = subprocess.run([wget_path, '--progress=dot:giga', '--trust-server-names', url, f'-O{temp_fname}'],
+            process = subprocess.run([aria_path, '-s16',  '-x16', '-k100M', url, f'-o {temp_fname}'],
               stdout=subprocess.PIPE,
               universal_newlines=True)
 
@@ -478,11 +485,18 @@ except IOError:
     logger.error(f'\nCheck {SNAPSHOT_PATH=} and permissions')
     Path(SNAPSHOT_PATH).mkdir(parents=True, exist_ok=True)
 
-wget_path = shutil.which("wget")
+if not USE_ARIA:
+    wget_path = shutil.which("wget")
+    
+    if wget_path is None:
+        logger.error("The wget utility was not found in the system, it is required")
+        sys.exit()
+else:
+    aria_path = shutil.which("aria2c")
 
-if wget_path is None:
-    logger.error("The wget utility was not found in the system, it is required")
-    sys.exit()
+    if aria_path is None:
+        logger.error("The aria2c utility was not found in the system, it is required with flag --use_aria")
+        sys.exit()
 
 json_data = ({"last_update_at": 0.0,
               "last_update_slot": 0,
