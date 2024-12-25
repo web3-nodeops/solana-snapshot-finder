@@ -339,6 +339,7 @@ def download(url: str):
         else:
             process = subprocess.run([aria_path, '-s16',  '-x16', '-k100M', url, f'-d {SNAPSHOT_PATH}', f'-o tmp-{fname}'],
               stdout=subprocess.PIPE,
+              stderr=subprocess.PIPE,
               universal_newlines=True)
 
         logger.info(f'Rename the downloaded file {temp_fname} --> {fname}')
